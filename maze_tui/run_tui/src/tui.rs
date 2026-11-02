@@ -60,6 +60,8 @@ static REVERSE_INDICICATOR: Set = Set {
 };
 const MAX_DURATION: Duration = Duration::from_secs(5);
 const MIN_DURATION: Duration = Duration::from_millis(1);
+pub const MIN_COLS: u16 = 12;
+pub const MIN_ROWS: u16 = 12;
 
 #[derive(Copy, Clone)]
 pub enum Process {
@@ -155,8 +157,8 @@ impl Tui<'_> {
             .split(f.size());
         let upper_portion = overall_layout[0];
         Dimension {
-            rows: (upper_portion.height - 2) as i32,
-            cols: (upper_portion.width - 2) as i32,
+            rows: upper_portion.height.saturating_sub(2) as i32,
+            cols: upper_portion.width.saturating_sub(2) as i32,
             offset: maze::Offset {
                 add_rows: upper_portion.y as i32,
                 add_cols: upper_portion.x as i32,
@@ -170,6 +172,27 @@ impl Tui<'_> {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(90), Constraint::Percentage(10)])
             .split(f.size())
+    }
+
+    // Below this the maze builders panic (an empty random range), so the
+    // home screen waits for a bigger window instead of building a maze.
+    pub fn fits(&mut self) -> bool {
+        // The frame keeps the size of the last draw; a resize event comes
+        // before the next draw, so read the new size now. The home maze is
+        // sized from it too.
+        let _ = self.terminal.autoresize();
+        let size = self.terminal.get_frame().size();
+        size.width >= MIN_COLS && size.height >= MIN_ROWS
+    }
+
+    pub fn too_small(&mut self) -> Result<()> {
+        self.terminal.draw(|f| {
+            let note = Paragraph::new("Make the window bigger")
+                .alignment(Alignment::Center)
+                .wrap(Wrap { trim: true });
+            f.render_widget(note, f.size());
+        })?;
+        Ok(())
     }
 
     pub fn padded_frame(&mut self) -> Rect {
@@ -549,7 +572,9 @@ impl Widget for BuildFrame<'_> {
             let buf_area = buf.area;
             let row_len = cmp::min(buf_area.height, (self.maze.rows / 2) as u16);
             let col_len = cmp::min(buf_area.width, self.maze.cols as u16);
-            for y in 0..row_len * 2 + 1 {
+            // A frame can be drawn after the window shrank and before the resize
+            // event arrives, so stay inside the buffer.
+            for y in (0..row_len * 2 + 1).filter(|y| y / 2 < buf_area.height) {
                 for x in 0..col_len {
                     *buf.get_mut(x, y / 2) = build::decode_mini_square(
                         self.maze,
@@ -565,7 +590,7 @@ impl Widget for BuildFrame<'_> {
             let row_len = cmp::min(buf_area.height, self.maze.rows as u16);
             let col_len = cmp::min(buf_area.width, self.maze.cols as u16);
             let wall_row = &maze::wall_row(self.maze.wall_style_index);
-            let cols = col_len as usize;
+            let cols = self.maze.cols as usize;
             for y in 0..row_len {
                 for x in 0..col_len {
                     *buf.get_mut(x, y) = build::decode_square(
@@ -584,7 +609,9 @@ impl Widget for SolveFrame<'_> {
             let buf_area = buf.area;
             let row_len = cmp::min(buf_area.height, (self.maze.rows / 2) as u16);
             let col_len = cmp::min(buf_area.width, self.maze.cols as u16);
-            for y in 0..row_len * 2 + 1 {
+            // A frame can be drawn after the window shrank and before the resize
+            // event arrives, so stay inside the buffer.
+            for y in (0..row_len * 2 + 1).filter(|y| y / 2 < buf_area.height) {
                 for x in 0..col_len {
                     *buf.get_mut(x, y / 2) = solve::decode_mini_path(
                         self.maze,
@@ -600,7 +627,7 @@ impl Widget for SolveFrame<'_> {
             let row_len = cmp::min(buf_area.height, self.maze.rows as u16);
             let col_len = cmp::min(buf_area.width, self.maze.cols as u16);
             let wall_row = &maze::wall_row(self.maze.wall_style_index);
-            let cols = col_len as usize;
+            let cols = self.maze.cols as usize;
             for y in 0..row_len {
                 for x in 0..col_len {
                     *buf.get_mut(x, y) = solve::decode_square(

@@ -59,12 +59,14 @@ pub fn run() -> tui::Result<()> {
     let events = tui::EventHandler::new(4.0);
     let mut tui = tui::Tui::new(terminal, events);
     tui.enter()?;
-    let mut play = new_home_tape(tui.padded_frame());
+    let mut play = home_tape(&mut tui);
     'render: while let Some(ev) = tui.events.next() {
         match ev {
             tui::Pack::Resize(_, _) => {
-                play = new_home_tape(tui.padded_frame());
+                play = home_tape(&mut tui);
             }
+            tui::Pack::Press(_) if play.is_none() => {}
+            tui::Pack::Render if play.is_none() => tui.too_small()?,
             tui::Pack::Press(ev) => match ev.into() {
                 Input { key: Key::Esc, .. } => break 'render,
                 Input { key: Key::Down, .. } => tui.scroll(ScrollDirection::Forward),
@@ -80,11 +82,11 @@ pub fn run() -> tui::Result<()> {
                     }
                     Err(msg) => 'reading_message: loop {
                         if let Some(ev) = tui.events.next() {
-                            match ev {
-                                tui::Pack::Render => {
+                            match (ev, &play) {
+                                (tui::Pack::Render, Some(play)) => {
                                     tui.error_popup(&msg, tui::SolveFrame { maze: &play.maze })?;
                                 }
-                                tui::Pack::Quit => break 'render,
+                                (tui::Pack::Quit, _) => break 'render,
                                 _ => break 'reading_message,
                             }
                         }
@@ -95,6 +97,9 @@ pub fn run() -> tui::Result<()> {
                 }
             },
             tui::Pack::Render => {
+                let Some(play) = play.as_mut() else {
+                    continue;
+                };
                 if play.pause {
                     play.forward = !play.forward;
                     play.pause = !play.pause;
@@ -296,6 +301,14 @@ fn new_tape(run: &tables::HistoryRunner) -> Playback {
 }
 
 // A new home tape solves everything but then only resets the solver for less distracting home.
+fn home_tape(tui: &mut tui::Tui) -> Option<Playback> {
+    if tui.fits() {
+        Some(new_home_tape(tui.padded_frame()))
+    } else {
+        None
+    }
+}
+
 fn new_home_tape(rect: Rect) -> Playback {
     let run_bg = set_random_args(&rect);
     let bg_maze = monitor::Monitor::new(maze::Maze::new(run_bg.args));
@@ -397,8 +410,8 @@ fn set_arg(run: &mut tables::HistoryRunner, args: &tables::FlagArg) -> Result<()
 fn set_random_args(rect: &Rect) -> tables::HistoryRunner {
     let mut rng = thread_rng();
     let mut this_run = tables::HistoryRunner::new();
-    this_run.args.odd_rows = (rect.height - 2) as i32;
-    this_run.args.odd_cols = (rect.width - 2) as i32;
+    this_run.args.odd_rows = rect.height.saturating_sub(2) as i32;
+    this_run.args.odd_cols = rect.width.saturating_sub(2) as i32;
     this_run.args.offset = maze::Offset {
         add_rows: rect.y as i32,
         add_cols: rect.x as i32,
