@@ -1,3 +1,13 @@
+> **Play it with Asciiverse.** With [av](https://asciiverse.sh), the Asciiverse
+> client:
+>
+> ```
+> av install maze-tui
+> av play maze-tui
+> ```
+>
+> The original README follows.
+
 # Maze TUI
 
 ![demo](/images/demo.gif)
