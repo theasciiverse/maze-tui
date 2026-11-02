@@ -21,5 +21,9 @@ PATCHES.md, and offer fixes upstream.
   4g -v "$PWD":/src -w /src/maze_tui rust:1-alpine sh -c 'apk add musl-dev
   && cargo build --release --locked -j4'`.
 - Preview: from a folder holding the binary as `maze-tui`,
-  `hub/tools/castrec.py asciiverse/maze-tui.cast <folder> "w4;s-b prim -s
-  bfs-hunt;w1;kenter;r7:>:0.15;w13;kesc;w2;kesc;w1" -- ./maze-tui`.
+  `hub/tools/castrec.py raw.cast <folder> "w1.5;s-b prim -s
+  bfs-hunt;kenter;r6:>:0.1;w10.6;kesc;w0.3;r22:<DEL>:0.02;s-b kruskal -s
+  distance -w round;kenter;w13;kesc;w0.4;kesc" -- ./maze-tui` (`<DEL>` is
+  the 0x7f byte, `$'\x7f'` in the shell: it clears the first command from
+  the input line), then `asciiverse/cast-squeeze.py raw.cast
+  asciiverse/maze-tui.cast` (pyte), which cuts the still stretches.

@@ -40,9 +40,13 @@ unicode-ident adds the Unicode-DFS-2016 licence.
   `run_tui`, renamed `maze-tui`), LICENSE, README and this file, plus
   SHA256SUMS. Runs on our tags only (`*-av.*`).
 - `asciiverse/maze-tui.cast`, the catalog preview, recorded at 100x30 with
-  hub's `tools/castrec.py`: the home screen, then `-b prim -s bfs-hunt`,
-  sped up with `>`, Prim's builder and the four BFS threads hunting for the
-  finish.
+  hub's `tools/castrec.py`: the home screen, then `-b prim -s bfs-hunt`
+  sped up with `>` (Prim's builder, then the BFS threads hunting for the
+  finish), then `-b kruskal -s distance -w round` (Kruskal's builder,
+  painted by distance from the centre). maze-tui holds a finished maze
+  unchanged, and a random maze takes a different time each run, so
+  `asciiverse/cast-squeeze.py` (needs pyte) caps every stretch where the
+  screen does not change at 0.8 s.
 
 av starts it as `maze-tui` with no arguments: the home screen, where Enter
 plays a random maze and flags choose the algorithms.
