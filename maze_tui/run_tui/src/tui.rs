@@ -1,6 +1,8 @@
 use builders::build;
 use crossbeam_channel::{self, unbounded};
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers,
+};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::{
     buffer::Buffer,
@@ -71,6 +73,8 @@ pub enum Pack {
     Press(KeyEvent),
     Resize((), ()),
     Render,
+    // Ctrl+C: leave the program from wherever it is.
+    Quit,
 }
 
 #[derive(Debug)]
@@ -83,6 +87,7 @@ pub struct Tui<'a> {
     pub events: EventHandler,
     pub scroll: Scroller,
     pub cmd: TextArea<'a>,
+    pub quit: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -123,6 +128,7 @@ impl Tui<'_> {
             events,
             scroll: Scroller::default(),
             cmd: cmd_prompt,
+            quit: false,
         }
     }
 
@@ -491,6 +497,11 @@ impl EventHandler {
                         CtEvent::Key(e) => {
                             if e.kind == event::KeyEventKind::Press {
                                 match e.code {
+                                    KeyCode::Char('c')
+                                        if e.modifiers.contains(KeyModifiers::CONTROL) =>
+                                    {
+                                        sender.send(Pack::Quit).expect("send quit error");
+                                    }
                                     KeyCode::Char('>') => {
                                         deltas = match deltas.checked_div(2) {
                                             Some(t) => t,

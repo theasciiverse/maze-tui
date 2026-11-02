@@ -74,6 +74,9 @@ pub fn run() -> tui::Result<()> {
                 } => match set_command_args(tui.cmd.lines()[0].to_string(), &mut tui) {
                     Ok(run) => {
                         render_maze(run, &mut tui)?;
+                        if tui.quit {
+                            break 'render;
+                        }
                     }
                     Err(msg) => 'reading_message: loop {
                         if let Some(ev) = tui.events.next() {
@@ -81,6 +84,7 @@ pub fn run() -> tui::Result<()> {
                                 tui::Pack::Render => {
                                     tui.error_popup(&msg, tui::SolveFrame { maze: &play.maze })?;
                                 }
+                                tui::Pack::Quit => break 'render,
                                 _ => break 'reading_message,
                             }
                         }
@@ -99,6 +103,7 @@ pub fn run() -> tui::Result<()> {
                 }
                 tui.home(tui::SolveFrame { maze: &play.maze })?;
             }
+            tui::Pack::Quit => break 'render,
         }
     }
     tui.exit()?;
@@ -140,6 +145,10 @@ fn render_maze(this_run: tables::HistoryRunner, tui: &mut tui::Tui) -> tui::Resu
                     )?;
                 }
                 tui::Pack::Resize(_, _) => break 'rendering,
+                tui::Pack::Quit => {
+                    tui.quit = true;
+                    break 'rendering;
+                }
             }
         }
         'solving: while let Some(ev) = tui.events.next() {
@@ -168,6 +177,10 @@ fn render_maze(this_run: tables::HistoryRunner, tui: &mut tui::Tui) -> tui::Resu
                     )?;
                 }
                 tui::Pack::Resize(_, _) => break 'rendering,
+                tui::Pack::Quit => {
+                    tui.quit = true;
+                    break 'rendering;
+                }
             }
         }
     }
@@ -241,6 +254,10 @@ fn handle_reader(
                     tui.info_popup(process, render_space, maze, &mut scroll, description)?;
                 }
                 tui::Pack::Resize(_, _) => return Err(Box::new(Quit::new())),
+                tui::Pack::Quit => {
+                    tui.quit = true;
+                    return Err(Box::new(Quit::new()));
+                }
             }
         }
     }
